@@ -1,0 +1,358 @@
+<html>
+<head>
+  <meta charset="utf-8">
+<!--[if IE]><meta http-equiv="x-ua-compatible" content="IE=9" /><![endif]-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Hail COPS</title>
+  
+  <style>
+    body{
+      height:100%;
+      background-color: #000000;
+      color: #FFFFFF;
+      font-size: 30px;
+      font-weight: bolder;
+      text-align: center;
+    }
+    
+    .regform{
+      padding: 20px;
+      background-color: rgba(100,100,100,0.1);
+    }
+    
+    .regform input{
+      width:75%;
+      background-color: #1A1A1A;
+      color: #FFFFFF;
+      border: 0;
+      font-size: 20px;
+      text-align: center;
+      margin: 5px 0px;
+    }
+    
+    .regform input[type='submit']{
+      padding: 15px 0px;
+      margin: 20px 0px;
+      width: 50%;
+      background-color: #2F2F2F;
+    }
+    
+    .regform input[type='submit']:hover{
+      background-color: #0A0A0A;
+    }
+    
+    .error{
+      outline-color: rgba(255,133,133,1);
+      outline: solid;
+    }
+    
+    .visible{
+      display: block;
+      visibility: visible;
+    }
+    
+    .invisible{
+      display: none;
+      visibility: hidden;
+    }
+    
+    .lives{
+      display: inline;
+    }
+    
+    .lives .heart{
+      display: inline-block;
+      margin: 5% 5%;
+    }
+    
+    .lives .heart img{
+      width: 50%;
+      max-width: 50%;
+    }
+    
+    .question{
+        
+      font-size: 25px;
+      font-weight: bolder;
+    }
+    
+    .options-area{
+      margin: 2% 0px;
+    }
+    
+    .options-area a{
+      display: block;
+      margin: 1% 5%;
+      color: inherit;
+      background-color: #1A1A1A;
+      text-decoration: none;
+    }
+    
+    
+    a.button{
+      display: block;
+      margin: 1% 5%;
+      color: inherit;
+      background-color: #1A1A1A;
+      text-decoration: none;
+    }
+    .button:hover{
+      background-color: #3A3A3A;
+    }
+    
+    .button:active{
+      background-color: #5A5A5A;
+    }
+    
+    .options-area a:hover{
+      background-color: #3A3A3A;
+    }
+    
+    .options-area a:active{
+      background-color: #5A5A5A;
+    }
+    
+    .timer{
+      font-size: 30px;
+      margin: 4% auto;
+    }
+    
+    @media(max-width: 768px){
+      .lives .heart{
+        margin: 4% 5%;
+      }
+      
+      .options-area{
+        margin: 4% 0px;
+      }
+      
+      .options-area a{
+        margin: 3% 5%;
+      }
+      
+      .button{
+        margin: 3% 5%;
+      }
+      
+      .timer{
+        margin: 4% auto;
+      }
+    }
+  </style>
+  <script src="jquery.js"></script>
+  <script src="js.cookie.js"></script>
+  <script>
+  var BASE_URL = "http://127.0.0.1:8000/";
+  var qn_uid;
+  var timer = 0.0;
+  var lives;
+  var p_uid;
+  $(document).ready(function(){
+    setInterval(updateTimer,1000);
+    $("input[type='text']").on("click",function(){
+      $(this).removeClass("error");
+    });
+    $("input[type='submit']#submit").click(function(e){
+      var errs = false;
+      e.preventDefault();
+      if($("#name").val()==""){
+        $("#name").addClass("error");
+        errs = true;
+      }
+      if($("#email").val()=="" || !(/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($("#email").val()))){
+        $("#email").addClass("error");
+        errs = true;
+      }
+      if($("#phone").val()=="" || !(/^(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[789]\d{9}$/.test($("#phone").val()))|| $("#phone").val().length > 13 ){
+        $("#phone").addClass("error");
+        errs = true;
+      }
+      if(!errs){
+        $.ajax({
+        type: "POST",
+        url: BASE_URL + "register/",
+        contentType: "application/json",
+        dataType: "json",
+        data: JSON.stringify({
+            name: $("#name").val(),
+            email: $("#email").val(),
+            phone: $("#phone").val()
+        }),
+        success: function(response) {
+            console.log(response);
+            p_uid = response['uid'];
+            lives = response['lives'];
+            $(".regform").removeClass("visible");
+            $(".regform").addClass("invisible");
+            $(".play").removeClass("invisible");
+            $(".play").addClass("visible");
+            startGame();
+        },
+        error: function(response) {
+          alert("OOOPS :P");
+        }
+        });
+      }
+      
+      });
+      
+      $(".retry").click(function(){
+        lives = 3;
+        $('.play').removeClass('invisible'); 
+        $('.play').addClass('visible');
+        $('.endscreen').removeClass('visible');
+        $('.endscreen').addClass('invisible');
+        startGame();
+    });
+      
+    });
+    
+    
+  function startGame(){
+    getNextQuestion();
+    var li = 3;
+    removeHeart(-1);
+    while(li != lives && li>0){
+      removeHeart(li);
+      li--;
+    }
+    $(".option").off("click");
+    $("#o1").click(function(){submitAns(1);});
+    $("#o2").click(function(){submitAns(2);});
+    $("#o3").click(function(){submitAns(3);});
+    $("#o4").click(function(){submitAns(4);});
+  };
+  
+  function submitAns(ans_no){ console.log("p_uid: %s, q_uid: %s", p_uid, qn_uid);
+    $.ajax({
+    type: "POST",
+    url: BASE_URL + "correctans/",
+    contentType: "application/json",
+    dataType: "json",
+    data: JSON.stringify({
+        p_uid: p_uid,
+        q_uid: qn_uid,
+        answer: ans_no,
+        time_taken: timer
+    }),
+    success: function(response) {
+	console.log(response)
+      if(response['correct']){
+        getNextQuestion();
+      }else{
+        if(lives == 1){
+          endScreen();
+        }
+        else{
+          removeHeart(lives);
+          lives -= 1;
+          getNextQuestion();
+        }
+      }
+    },
+    error: function(response) {
+      alert("OOOPS :P");
+    }
+    });
+  }
+  
+  function removeHeart(heart){
+    if(heart == -1){$("#heart3 img").attr("src","heart.png");$("#heart2 img").attr("src","heart.png");$("#heart1 img").attr("src","heart.png");}
+    if(heart == 3){$("#heart3 img").attr("src","heart_dead.png");}
+    if(heart == 2){$("#heart2 img").attr("src","heart_dead.png");}
+    if(heart == 1){$("#heart1 img").attr("src","heart_dead.png");}
+  }
+  
+  function endScreen(){
+    $.ajax({
+    type: "POST",
+    url: BASE_URL + "finally/",
+    contentType: "application/json",
+    dataType: "json",
+    data: JSON.stringify({
+        uid: p_uid
+    }),
+    success: function(response) {
+		console.log(response);
+      $('.play').removeClass('visible');
+      $('.play').addClass('invisible');
+      $('.endscreen').removeClass('invisible');
+      $('.endscreen').addClass('visible');
+      $("#finalscore").text(response['score']);
+    },
+    error: function(response) {
+      alert("OOOPS :P");
+    }
+    });
+  }
+  
+  function updateTimer(){
+    timer += 1;
+    $(".timer").text(timer);
+  }
+  
+  function getNextQuestion(){
+    $.ajax({
+    type: "POST",
+    url: BASE_URL + "nextqn/",
+    contentType: "application/json",
+    dataType: "json",
+    data: JSON.stringify({
+        uid: p_uid
+    }),
+    success: function(response) {
+	console.log(response);
+        if(response['completed']==true) {endScreen(); return;}
+        timer = 0.0;
+        $(".timer").text("0");
+        qn_uid = response['question_num'];
+        $(".question").text(response['question_text']);
+        $("#o1").text(response['question_options'][0]);
+        $("#o2").text(response['question_options'][1]);
+        $("#o3").text(response['question_options'][2]);
+        $("#o4").text(response['question_options'][3]);
+    },
+    error: function(response) {
+      alert("OOOPS :P");
+    }
+    });
+  }
+  </script>
+</head>
+<body>
+  <h1>COPS Quiz</h1>
+  <div class="regform visible">
+    <h3>Interested?</h3>
+    <form action="">
+      <input type="text" id="name" placeholder="NAME"></input>
+      <input type="text" id="phone" placeholder="MOBILE NUMBER"></input>
+      <input type="text" id="email" placeholder="EMAIL"></input>
+      <input type="submit" id="submit" value="Let's Play!"></input>
+    </form>
+  </div>
+  <div class="play invisible">
+    <div class="lives">
+      <div class="heart" id="heart1"><img src="heart.png" alt="Life"></div>
+      <div class="heart" id="heart2"><img src="heart.png" alt="Life"></div>
+      <div class="heart" id="heart3"><img src="heart.png" alt="Life"></div>
+    </div>
+    <div class="question">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et</div>
+    <div class="options-area">
+        <a href="#" class="option" id="o1" data-number="1">A</a>
+        <a href="#" class="option" id="o2" data-number="2">B</a>
+        <a href="#" class="option" id="o3" data-number="3">C</a>
+        <a href="#" class="option" id="o4" data-number="4">D</a>
+      </ul>
+    </div>
+    <div class="timer">0</div>
+  </div>
+  <div class="endscreen invisible">
+    <br />
+    <h2>SCORE</h2>
+    <br />
+    <h2 id='finalscore'>0</h2>
+    <br />
+    <a class="button retry" href="#">Play Again?</a>
+  </div>
+</body>
+</html>

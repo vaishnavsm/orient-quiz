@@ -1,0 +1,30 @@
+<html>
+<head>
+  <title>Leaderboard</title>
+  <script src="jquery"></script>
+  <script>
+  var BASE_URL = "http://192.168.0.100:5567/";
+    $(document).ready(function(){
+      setInterval(update,5000)
+    });
+    
+    function update(){
+      $.ajax({
+      type: "GET",
+      url: BASE_URL + "leader/",
+      contentType: "application/json",
+      dataType: "json",
+      data: JSON.stringify({      }),
+      success: function(response) {
+          $(".leader").html("NAME: "+response['name']+"<br>NUMBER:"+response['num']+"<br>Score:"+response['sc']+"<br>Email:"+response['em']);
+      },
+      error: function(response) {console.log("NOP");
+      }
+      });
+    };
+  </script>
+</head>
+<body>
+  <div class="leader"></div>
+</body>
+</html>
